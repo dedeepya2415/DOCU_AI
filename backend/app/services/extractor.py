@@ -32,7 +32,7 @@ class AIExtractor:
                 ],
                 response_format={"type": "json_object"},
                 temperature=0,
-                max_tokens=600
+                max_tokens=250
             )
         except Exception as e:
             raise HTTPException(

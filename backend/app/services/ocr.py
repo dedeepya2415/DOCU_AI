@@ -22,6 +22,8 @@ class OCRService:
         try:
             if extension == ".pdf":
                 return self.extract_from_pdf(file_path)
+            elif extension == ".docx":
+                return self.extract_from_docx(file_path)
             return self.extract_from_image(file_path)
         except HTTPException:
             raise
@@ -66,13 +68,32 @@ class OCRService:
             result = self.reader.readtext(image_path, detail=0)
             return "\n".join(result)
             
+        # Resize image to a maximum dimension to drastically speed up OCR
+        max_dim = 1024
+        h, w = img.shape[:2]
+        if max(h, w) > max_dim:
+            scale = max_dim / max(h, w)
+            img = cv2.resize(img, (int(w * scale), int(h * scale)))
+
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
-        # Basic denoising and contrast enhancement
-        denoised = cv2.fastNlMeansDenoising(gray, h=10, searchWindowSize=21, templateWindowSize=7)
-        
-        result = self.reader.readtext(denoised, detail=0)
-        if not result:
-            result = self.reader.readtext(gray, detail=0)
+        # Removed fastNlMeansDenoising as it is extremely slow on CPU.
+        # EasyOCR is usually robust enough to handle basic image noise.
+        result = self.reader.readtext(gray, detail=0)
 
         return "\n".join(result)
+
+    def extract_from_docx(self, docx_path: str):
+        from docx import Document
+        doc = Document(docx_path)
+        text = []
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():
+                text.append(paragraph.text)
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    for p in cell.paragraphs:
+                        if p.text.strip():
+                            text.append(p.text)
+        return "\n".join(text)

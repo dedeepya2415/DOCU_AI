@@ -3,6 +3,7 @@ import Header from "./components/Header";
 import UploadSection from "./components/UploadSection";
 import ResultsDashboard from "./components/ResultsDashboard";
 import ProcessingOverlay from "./components/ProcessingOverlay";
+import TemplateUploader from "./components/TemplateUploader";
 import axios from "axios";
 import toast from "react-hot-toast";
 import "./App.css";
@@ -95,7 +96,7 @@ function App() {
         `${API_URL}/process-documents`,
         formData,
         {
-          timeout: 120000,
+          timeout: 300000,
         }
       );
 
@@ -143,11 +144,14 @@ function App() {
             isProcessing={isProcessing}
           />
         ) : (
-          <ResultsDashboard
-            results={results}
-            errors={errors}
-            onReset={handleReset}
-          />
+          <>
+            <ResultsDashboard
+              results={results}
+              errors={errors}
+              onReset={handleReset}
+            />
+            <TemplateUploader registryData={results} />
+          </>
         )}
       </main>
 
