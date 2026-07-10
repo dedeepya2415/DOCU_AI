@@ -2,6 +2,8 @@ from pathlib import Path
 
 import fitz
 import easyocr
+import cv2
+import numpy as np
 from fastapi import HTTPException
 
 # Singleton: initialize once at module load to avoid reloading models per request
@@ -40,6 +42,18 @@ class OCRService:
 
             if page_text.strip():
                 text += page_text + "\n"
+            else:
+                pix = page.get_pixmap(dpi=200)
+                img_array = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+                
+                if pix.n == 4:
+                    img_array = cv2.cvtColor(img_array, cv2.COLOR_RGBA2RGB)
+                elif pix.n == 1:
+                    img_array = cv2.cvtColor(img_array, cv2.COLOR_GRAY2RGB)
+                    
+                gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+                result = self.reader.readtext(gray, detail=0)
+                text += "\n".join(result) + "\n"
 
         document.close()
 
@@ -47,6 +61,18 @@ class OCRService:
 
     def extract_from_image(self, image_path: str):
 
-        result = self.reader.readtext(image_path, detail=0)
+        img = cv2.imread(image_path)
+        if img is None:
+            result = self.reader.readtext(image_path, detail=0)
+            return "\n".join(result)
+            
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # Basic denoising and contrast enhancement
+        denoised = cv2.fastNlMeansDenoising(gray, h=10, searchWindowSize=21, templateWindowSize=7)
+        
+        result = self.reader.readtext(denoised, detail=0)
+        if not result:
+            result = self.reader.readtext(gray, detail=0)
 
         return "\n".join(result)

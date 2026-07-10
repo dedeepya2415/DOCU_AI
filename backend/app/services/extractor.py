@@ -30,6 +30,7 @@ class AIExtractor:
                         "content": prompt
                     }
                 ],
+                response_format={"type": "json_object"},
                 temperature=0,
                 max_tokens=600
             )

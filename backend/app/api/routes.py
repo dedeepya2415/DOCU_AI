@@ -43,15 +43,34 @@ async def process_documents(
         ("property_document", uploaded_files[4]),
     ]
 
-    for field_name, file in field_mapping:
-        result = processor.process_document(file["path"])
+    import asyncio
 
-        registry.add_document(
-            role_mapping[field_name],
-            result["structured_data"]
-        )
+    async def process_single(field_name, file):
+        try:
+            result = await asyncio.to_thread(processor.process_document, file["path"])
+            return field_name, result, None
+        except Exception as e:
+            return field_name, None, str(e)
+
+    tasks = [
+        process_single(field_name, file)
+        for field_name, file in field_mapping
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    errors = {}
+    for field_name, result, error in results:
+        if error:
+            errors[field_name] = error
+        else:
+            registry.add_document(
+                role_mapping[field_name],
+                result["structured_data"]
+            )
 
     return {
-        "success": True,
-        "registry": registry.build()
+        "success": len(errors) == 0,
+        "registry": registry.build(),
+        "errors": errors if errors else None
     }

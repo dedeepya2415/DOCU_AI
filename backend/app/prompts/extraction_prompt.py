@@ -5,7 +5,7 @@ Your job is to extract structured information from OCR text.
 
 Rules:
 
-1. Return ONLY valid JSON.
+1. Return ONLY valid JSON as a JSON object.
 2. Never explain.
 3. Never add markdown.
 4. If a value is missing return an empty string.
