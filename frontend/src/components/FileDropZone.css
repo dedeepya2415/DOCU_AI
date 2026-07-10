@@ -1,0 +1,154 @@
+.dropzone-card {
+  border-radius: var(--radius-md);
+  border: 1.5px dashed rgba(255, 255, 255, 0.1);
+  background: var(--bg-glass);
+  transition: all 0.25s ease;
+  min-height: 150px;
+  display: flex;
+}
+
+.dropzone-card:hover:not(.has-file) {
+  border-color: var(--border-accent);
+  background: var(--bg-glass-hover);
+}
+
+.dropzone-card.drag-over {
+  border-color: var(--accent);
+  background: rgba(99, 102, 241, 0.08);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.dropzone-card.has-file {
+  border-style: solid;
+  border-color: rgba(52, 211, 153, 0.3);
+  background: var(--success-bg);
+}
+
+/* ─── Empty state ─── */
+.dropzone-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 16px;
+  cursor: pointer;
+  text-align: center;
+  outline: none;
+}
+
+.dropzone-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-glass);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  transition: all 0.25s ease;
+}
+
+.dropzone-card:hover .dropzone-icon {
+  color: var(--text-accent);
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.dropzone-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dropzone-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 200px;
+  line-height: 1.4;
+}
+
+.dropzone-cta {
+  font-size: 11px;
+  color: var(--text-accent);
+  font-weight: 500;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+/* ─── Attached state ─── */
+.dropzone-attached {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.attached-icon-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: rgba(52, 211, 153, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.attached-icon {
+  color: var(--success);
+}
+
+.check-badge {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  color: var(--success);
+  background: var(--bg-secondary);
+  border-radius: 50%;
+}
+
+.attached-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.attached-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attached-size {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.btn-remove {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--bg-glass);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-remove:hover {
+  background: var(--error-bg);
+  color: var(--error);
+}
