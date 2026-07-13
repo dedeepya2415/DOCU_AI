@@ -15,9 +15,11 @@ class FileService:
 
         uploaded_files = []
 
-        for file in files:
+        import uuid
 
-            destination = upload_dir / file.filename
+        for file in files:
+            unique_filename = f"{uuid.uuid4()}_{file.filename}"
+            destination = upload_dir / unique_filename
 
             contents = await file.read()
             with destination.open("wb") as buffer:

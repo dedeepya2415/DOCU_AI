@@ -44,13 +44,17 @@ async def process_documents(
     ]
 
     import asyncio
+    
+    # Allow up to 3 parallel processes (OCR + LLM) to speed things up without hitting the 5-request NVIDIA limit
+    sem = asyncio.Semaphore(3)
 
     async def process_single(field_name, file):
-        try:
-            result = await asyncio.to_thread(processor.process_document, file["path"])
-            return field_name, result, None
-        except Exception as e:
-            return field_name, None, str(e)
+        async with sem:
+            try:
+                result = await asyncio.to_thread(processor.process_document, file["path"])
+                return field_name, result, None
+            except Exception as e:
+                return field_name, None, str(e)
 
     tasks = [
         process_single(field_name, file)
@@ -60,6 +64,8 @@ async def process_documents(
     results = await asyncio.gather(*tasks)
 
     errors = {}
+    total_tokens = {"prompt": 0, "completion": 0, "total": 0}
+
     for field_name, result, error in results:
         if error:
             errors[field_name] = error
@@ -68,11 +74,17 @@ async def process_documents(
                 role_mapping[field_name],
                 result["structured_data"]
             )
+            usage = result.get("token_usage")
+            if usage:
+                total_tokens["prompt"] += usage.get("prompt", 0)
+                total_tokens["completion"] += usage.get("completion", 0)
+                total_tokens["total"] += usage.get("total", 0)
 
     return {
         "success": len(errors) == 0,
         "registry": registry.build(),
-        "errors": errors if errors else None
+        "errors": errors if errors else None,
+        "token_usage": total_tokens
     }
 
 
@@ -123,7 +135,7 @@ async def generate_document(
             print(f"  Field {f['index']}: ...{f['context_before']}  [{f['blank_text']}]  {f['context_after']}...")
 
         # Step 2: LLM maps fields by index
-        mapping_data = await asyncio.to_thread(
+        mapping_data, token_usage = await asyncio.to_thread(
             analyzer.analyze_blank_fields, fields, registry_json
         )
 
@@ -151,13 +163,13 @@ async def generate_document(
                         "context_after": paragraph.text[match.end():end].strip(),
                     })
 
-            mapping_data = await asyncio.to_thread(
+            mapping_data, token_usage = await asyncio.to_thread(
                 analyzer.analyze_blank_fields, fields, registry_json
             )
         else:
             ocr_service = OCRService()
             raw_text = ocr_service.extract_text(template_path)
-            mapping_data = await asyncio.to_thread(
+            mapping_data, token_usage = await asyncio.to_thread(
                 analyzer.analyze_prefilled, raw_text, registry_json
             )
 
@@ -170,7 +182,7 @@ async def generate_document(
 
         print(f"[AutoFill] Detected PRE-FILLED template")
 
-        mapping_data = await asyncio.to_thread(
+        mapping_data, token_usage = await asyncio.to_thread(
             analyzer.analyze_prefilled, raw_text, registry_json
         )
 
@@ -179,6 +191,8 @@ async def generate_document(
     # Encode mapping data for the frontend header
     mapping_json_str = json.dumps(mapping_data)
     encoded_mapping = urllib.parse.quote(mapping_json_str)
+    
+    token_usage_str = json.dumps(token_usage)
 
     filename = f"Filled_{template_file.filename}"
     media_type = (
@@ -191,9 +205,10 @@ async def generate_document(
         filename=filename,
         media_type=media_type,
         headers={
-            "Access-Control-Expose-Headers": "X-Template-Mapping, X-Template-File-Id",
+            "Access-Control-Expose-Headers": "X-Template-Mapping, X-Template-File-Id, X-Token-Usage",
             "X-Template-Mapping": encoded_mapping,
-            "X-Template-File-Id": f"{file_id}{ext}"
+            "X-Template-File-Id": f"{file_id}{ext}",
+            "X-Token-Usage": token_usage_str
         }
     )
 

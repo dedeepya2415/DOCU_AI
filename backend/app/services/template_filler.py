@@ -14,6 +14,59 @@ class TemplateFiller:
       - DOCX templates (string replacement preserving formatting)
     """
 
+    # ─── Font Extraction Helpers ────────────────────────────────────────
+
+    def get_font_info_near(self, page, target_rect):
+        """
+        Extracts actual font size and font name from the text near the target rectangle.
+        Returns (font_size, font_name).
+        """
+        default_size = 12.0
+        default_font = "tiro"  # fallback
+        
+        text_dict = page.get_text("dict")
+        best_dist = float('inf')
+        best_size = default_size
+        best_font = default_font
+        
+        for block in text_dict.get("blocks", []):
+            if block.get("type") == 0:  # Text block
+                for line in block.get("lines", []):
+                    for span in line.get("spans", []):
+                        span_rect = fitz.Rect(span["bbox"])
+                        # Check vertical distance
+                        dy = min(abs(span_rect.y0 - target_rect.y0), abs(span_rect.y1 - target_rect.y1))
+                        if dy < best_dist and span["text"].strip() and not re.match(r"^_{2,}$", span["text"].strip()):
+                            best_dist = dy
+                            best_size = span["size"]
+                            best_font = span["font"]
+        
+        # Clamp font size as requested (9-14pt)
+        best_size = max(9.0, min(14.0, best_size))
+        return best_size, self.map_font_name(best_font)
+
+    def map_font_name(self, font_name: str) -> str:
+        """
+        Maps a detected font name to a PyMuPDF built-in base-14 font.
+        """
+        name_lower = font_name.lower()
+        if "bold" in name_lower and ("italic" in name_lower or "oblique" in name_lower):
+            if "times" in name_lower or "serif" in name_lower: return "times-bolditalic"
+            if "courier" in name_lower or "mono" in name_lower: return "courier-boldoblique"
+            return "helv-boldoblique"
+        elif "bold" in name_lower:
+            if "times" in name_lower or "serif" in name_lower: return "times-bold"
+            if "courier" in name_lower or "mono" in name_lower: return "courier-bold"
+            return "helv-bold"
+        elif "italic" in name_lower or "oblique" in name_lower:
+            if "times" in name_lower or "serif" in name_lower: return "times-italic"
+            if "courier" in name_lower or "mono" in name_lower: return "courier-oblique"
+            return "helv-oblique"
+        else:
+            if "times" in name_lower or "serif" in name_lower: return "times-roman"
+            if "courier" in name_lower or "mono" in name_lower: return "courier"
+            return "helv"
+
     # ─── Blank Field Extraction (PDF) ───────────────────────────────────
 
     def extract_blank_fields_from_pdf(self, template_path: str) -> list:
@@ -120,14 +173,10 @@ class TemplateFiller:
             page = doc[field["page_num"]]
             rect = fitz.Rect(field["bbox"])
 
-            # Dynamically calculate font size based on the height of the blank line
-            # (Usually height is ~1.2x the font size)
-            f_size = max(10, rect.height * 0.9)
+            # Use real font info from nearby text
+            f_size, f_name = self.get_font_info_near(page, rect)
 
-            # Insert text using Times Roman (standard for legal docs)
-            # We use insert_text with a Point (bottom-left baseline) rather than insert_textbox
-            # to avoid text getting clipped or rejected if the bounding box is too tight.
-            # Baseline is usually ~15% above the bottom of the bounding box
+            # Insert text. Baseline is usually ~15% above the bottom of the bounding box
             baseline_y = rect.y1 - (rect.height * 0.15)
             point = fitz.Point(rect.x0, baseline_y)
 
@@ -135,7 +184,7 @@ class TemplateFiller:
                 point,
                 str(value),
                 fontsize=f_size,
-                fontname="tiro",
+                fontname=f_name,
                 color=(0, 0, 0)
             )
 
@@ -167,13 +216,18 @@ class TemplateFiller:
                 rects = page.search_for(search_text)
                 if rects:
                     for rect in rects:
+                        # Grab font info before redacting!
+                        f_size, f_name = self.get_font_info_near(page, rect)
+
                         # Redact the old text
                         page.add_redact_annot(rect, fill=(1, 1, 1))
                         # Save the insertion details for step 2
                         insertions.append({
                             "page_num": page_num,
                             "rect": rect,
-                            "text": replace_text
+                            "text": replace_text,
+                            "f_size": f_size,
+                            "f_name": f_name
                         })
 
         for page in doc:
@@ -183,7 +237,8 @@ class TemplateFiller:
             page = doc[ins["page_num"]]
             rect = ins["rect"]
             
-            f_size = max(10, rect.height * 0.9)
+            f_size = ins["f_size"]
+            f_name = ins["f_name"]
             baseline_y = rect.y1 - (rect.height * 0.15)
             point = fitz.Point(rect.x0, baseline_y)
             
@@ -191,7 +246,7 @@ class TemplateFiller:
                 point,
                 ins["text"],
                 fontsize=f_size,
-                fontname="tiro",
+                fontname=f_name,
                 color=(0, 0, 0)
             )
 
@@ -210,51 +265,76 @@ class TemplateFiller:
         """
         doc = Document(template_path)
 
+        def replace_regex_in_paragraph(paragraph, pattern, replace_func):
+            if not re.search(pattern, paragraph.text):
+                return
+            
+            # Try to replace within individual runs first (safest for formatting)
+            matched_in_runs = False
+            for run in paragraph.runs:
+                if re.search(pattern, run.text):
+                    run.text = re.sub(pattern, replace_func, run.text)
+                    matched_in_runs = True
+            
+            if matched_in_runs:
+                return
+
+            # Fallback: if the pattern spans multiple runs, collapse into the first run
+            # to preserve at least the starting style of the paragraph
+            first_run = paragraph.runs[0]
+            new_text = re.sub(pattern, replace_func, paragraph.text)
+            for run in paragraph.runs:
+                run.text = ""
+            first_run.text = new_text
+
+        def replace_string_in_paragraph(paragraph, search, replace):
+            if search not in paragraph.text:
+                return
+            
+            matched_in_runs = False
+            for run in paragraph.runs:
+                if search in run.text:
+                    run.text = run.text.replace(search, replace)
+                    matched_in_runs = True
+            
+            if matched_in_runs:
+                return
+                
+            first_run = paragraph.runs[0]
+            new_text = paragraph.text.replace(search, replace)
+            for run in paragraph.runs:
+                run.text = ""
+            first_run.text = new_text
+
         # Determine which key holds the replacements
         if "field_values" in mapping_data:
-            # Blank template mode: we need to replace underscores in order
-            # Build a list of (underscore_pattern, value) replacements
             field_values = mapping_data["field_values"]
-            # Collect all paragraphs text, find underscores, replace by index
             field_idx = 0
+            
+            def replace_blank(match):
+                nonlocal field_idx
+                key = str(field_idx)
+                value = field_values.get(key)
+                field_idx += 1
+                return str(value) if value else match.group(0)
+
             for paragraph in doc.paragraphs:
-                if not re.search(r"_{3,}", paragraph.text):
-                    continue
-                # Find all underscore sequences in this paragraph
-                def replace_blank(match):
-                    nonlocal field_idx
-                    key = str(field_idx)
-                    value = field_values.get(key)
-                    field_idx += 1
-                    return str(value) if value else match.group(0)
+                replace_regex_in_paragraph(paragraph, r"_{3,}", replace_blank)
 
-                paragraph.text = re.sub(r"_{3,}", replace_blank, paragraph.text)
-
-            # Also handle tables
             for table in doc.tables:
                 for row in table.rows:
                     for cell in row.cells:
                         for paragraph in cell.paragraphs:
-                            if not re.search(r"_{3,}", paragraph.text):
-                                continue
-                            def replace_blank_table(match):
-                                nonlocal field_idx
-                                key = str(field_idx)
-                                value = field_values.get(key)
-                                field_idx += 1
-                                return str(value) if value else match.group(0)
-
-                            paragraph.text = re.sub(r"_{3,}", replace_blank_table, paragraph.text)
+                            replace_regex_in_paragraph(paragraph, r"_{3,}", replace_blank)
 
         elif "mappings" in mapping_data:
-            # Pre-filled mode: simple search/replace
             mappings = mapping_data["mappings"]
             for paragraph in doc.paragraphs:
                 for mapping in mappings:
                     search = mapping.get("search", "")
                     replace = mapping.get("replace", "")
-                    if search and replace and search in paragraph.text:
-                        paragraph.text = paragraph.text.replace(search, replace)
+                    if search and replace:
+                        replace_string_in_paragraph(paragraph, search, replace)
 
             for table in doc.tables:
                 for row in table.rows:
@@ -263,8 +343,8 @@ class TemplateFiller:
                             for mapping in mappings:
                                 search = mapping.get("search", "")
                                 replace = mapping.get("replace", "")
-                                if search and replace and search in paragraph.text:
-                                    paragraph.text = paragraph.text.replace(search, replace)
+                                if search and replace:
+                                    replace_string_in_paragraph(paragraph, search, replace)
 
         fd, temp_path = tempfile.mkstemp(suffix=".docx")
         os.close(fd)

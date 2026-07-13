@@ -18,21 +18,28 @@ class TemplateAnalyzer:
 
     def __init__(self):
         self.client = OpenAI(
-            api_key=settings.OPENROUTER_API_KEY,
-            base_url="https://openrouter.ai/api/v1"
+            api_key=settings.NVIDIA_API_KEY,
+            base_url="https://integrate.api.nvidia.com/v1"
         )
 
     def _call_llm(self, prompt: str) -> dict:
         """Shared LLM call logic with error handling."""
+        print("=" * 80)
+        print(f"🚀 [TemplateAnalyzer] Sending request to NVIDIA API (Model: {settings.NVIDIA_MODEL})")
+        print(f"📝 Prompt length: {len(prompt)} chars")
+        print("=" * 80)
+
         try:
             response = self.client.chat.completions.create(
-                model=settings.OPENROUTER_MODEL,
+                model=settings.NVIDIA_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
                 temperature=0,
-                max_tokens=250
+                max_tokens=4096
             )
+            print("✅ [TemplateAnalyzer] Successfully received response from NVIDIA API")
         except Exception as e:
+            print(f"❌ [TemplateAnalyzer] API call failed: {str(e)}")
             raise HTTPException(
                 status_code=502,
                 detail=f"LLM API error during template analysis: {str(e)}"
@@ -44,6 +51,16 @@ class TemplateAnalyzer:
                 detail=f"LLM API error: {response.error.get('message', str(response.error))}"
             )
 
+        usage_info = getattr(response, "usage", None)
+        token_usage = {
+            "prompt": usage_info.prompt_tokens if usage_info else 0,
+            "completion": usage_info.completion_tokens if usage_info else 0,
+            "total": usage_info.total_tokens if usage_info else 0
+        }
+        
+        if usage_info:
+            print(f"🪙 [TemplateAnalyzer] Token Usage: Prompt={usage_info.prompt_tokens}, Completion={usage_info.completion_tokens}, Total={usage_info.total_tokens}")
+
         content = response.choices[0].message.content
 
         print("=" * 80)
@@ -51,20 +68,38 @@ class TemplateAnalyzer:
         print(content)
         print("=" * 80)
 
-        match = re.search(r"\{.*\}", content, re.DOTALL)
-        if not match:
-            raise HTTPException(
-                status_code=422,
-                detail="LLM did not return valid JSON for template analysis."
-            )
+        def _parse_and_return(text):
+            # Try direct parse first
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                pass
 
-        try:
-            return json.loads(match.group())
-        except json.JSONDecodeError as e:
+            # Try to extract from markdown block
+            match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group(1))
+                except json.JSONDecodeError:
+                    pass
+
+            # Fallback to broad regex
+            match = re.search(r"\{.*\}", text, re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group())
+                except json.JSONDecodeError as e:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"JSON parse error in template analysis: {str(e)}\n\nResponse:\n{text}"
+                    )
+
             raise HTTPException(
                 status_code=422,
-                detail=f"JSON parse error in template analysis: {str(e)}"
+                detail=f"LLM did not return valid JSON for template analysis.\n\nResponse:\n{text}"
             )
+            
+        return _parse_and_return(content), token_usage
 
     def analyze_blank_fields(self, fields: list, registry_data: dict) -> dict:
         """

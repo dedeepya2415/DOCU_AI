@@ -105,6 +105,12 @@ function App() {
       const data = response.data;
       setResults(data.registry);
 
+      if (data.token_usage) {
+        console.log(
+          `🪙 AI Token Usage for Extraction: Prompt=${data.token_usage.prompt}, Completion=${data.token_usage.completion}, Total=${data.token_usage.total}`
+        );
+      }
+
       if (data.errors && Object.keys(data.errors).length > 0) {
         setErrors(data.errors);
         toast.error("Some documents could not be processed.");

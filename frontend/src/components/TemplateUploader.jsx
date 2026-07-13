@@ -51,8 +51,18 @@ function TemplateUploader({ registryData }) {
       // Read mapping and file ID from headers
       const mappingHeader = response.headers['x-template-mapping'];
       const fileIdHeader = response.headers['x-template-file-id'];
+      const tokenUsageHeader = response.headers['x-token-usage'];
       
       if (fileIdHeader) setFileId(fileIdHeader);
+
+      if (tokenUsageHeader) {
+        try {
+          const usage = JSON.parse(tokenUsageHeader);
+          console.log(`🪙 AI Token Usage for Template Filling: Prompt=${usage.prompt}, Completion=${usage.completion}, Total=${usage.total}`);
+        } catch (e) {
+          console.error("Failed to parse token usage", e);
+        }
+      }
 
       if (mappingHeader) {
         try {
