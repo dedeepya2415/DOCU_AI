@@ -18,26 +18,25 @@ class TemplateAnalyzer:
 
     def __init__(self):
         self.client = OpenAI(
-            api_key=settings.NVIDIA_API_KEY,
-            base_url="https://integrate.api.nvidia.com/v1"
+            api_key=settings.OPENAI_API_KEY
         )
 
     def _call_llm(self, prompt: str) -> dict:
         """Shared LLM call logic with error handling."""
         print("=" * 80)
-        print(f"🚀 [TemplateAnalyzer] Sending request to NVIDIA API (Model: {settings.NVIDIA_MODEL})")
+        print(f"🚀 [TemplateAnalyzer] Sending request to OpenAI API (Model: {settings.OPENAI_MODEL})")
         print(f"📝 Prompt length: {len(prompt)} chars")
         print("=" * 80)
 
         try:
             response = self.client.chat.completions.create(
-                model=settings.NVIDIA_MODEL,
+                model=settings.OPENAI_MODEL,
                 messages=[{"role": "user", "content": prompt}],
                 response_format={"type": "json_object"},
                 temperature=0,
                 max_tokens=4096
             )
-            print("✅ [TemplateAnalyzer] Successfully received response from NVIDIA API")
+            print("✅ [TemplateAnalyzer] Successfully received response from OpenAI API")
         except Exception as e:
             print(f"❌ [TemplateAnalyzer] API call failed: {str(e)}")
             raise HTTPException(

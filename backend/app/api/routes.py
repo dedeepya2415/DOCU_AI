@@ -45,7 +45,7 @@ async def process_documents(
 
     import asyncio
     
-    # Allow up to 3 parallel processes (OCR + LLM) to speed things up without hitting the 5-request NVIDIA limit
+    # Allow up to 3 parallel processes (OCR + LLM) to speed things up without hitting the 5-request OpenAI limit
     sem = asyncio.Semaphore(3)
 
     async def process_single(field_name, file):

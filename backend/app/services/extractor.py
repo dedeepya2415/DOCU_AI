@@ -13,8 +13,7 @@ class AIExtractor:
     def __init__(self):
 
         self.client = OpenAI(
-            api_key=settings.NVIDIA_API_KEY,
-            base_url="https://integrate.api.nvidia.com/v1"
+            api_key=settings.OPENAI_API_KEY
         )
 
     def extract(self, raw_text: str):
@@ -22,13 +21,13 @@ class AIExtractor:
         prompt = EXTRACTION_PROMPT.replace("{text}", raw_text)
 
         print("=" * 80)
-        print(f"🚀 [AIExtractor] Sending request to NVIDIA API (Model: {settings.NVIDIA_MODEL})")
+        print(f"🚀 [AIExtractor] Sending request to OpenAI API (Model: {settings.OPENAI_MODEL})")
         print(f"📝 Prompt length: {len(prompt)} chars")
         print("=" * 80)
 
         try:
             response = self.client.chat.completions.create(
-                model=settings.NVIDIA_MODEL,
+                model=settings.OPENAI_MODEL,
                 messages=[
                     {
                         "role": "user",
@@ -39,7 +38,7 @@ class AIExtractor:
                 temperature=0,
                 max_tokens=4096
             )
-            print("✅ [AIExtractor] Successfully received response from NVIDIA API")
+            print("✅ [AIExtractor] Successfully received response from OpenAI API")
         except Exception as e:
             print(f"❌ [AIExtractor] API call failed: {str(e)}")
             raise HTTPException(

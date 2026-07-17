@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     GENERATED_DIR: str
     TEMPLATE_DIR: str
 
-    NVIDIA_API_KEY: str           # no default — fail fast at startup if missing
-    NVIDIA_MODEL: str
+    OPENAI_API_KEY: str
+    OPENAI_MODEL: str
 
     model_config = SettingsConfigDict(
         env_file=".env",
