@@ -26,26 +26,42 @@ class AIExtractor:
         print(f"📝 Prompt length: {len(prompt)} chars")
         print("=" * 80)
 
-        try:
-            response = self.client.chat.completions.create(
-                model=settings.NVIDIA_MODEL,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                response_format={"type": "json_object"},
-                temperature=0,
-                max_tokens=4096
-            )
-            print("✅ [AIExtractor] Successfully received response from NVIDIA API")
-        except Exception as e:
-            print(f"❌ [AIExtractor] API call failed: {str(e)}")
-            raise HTTPException(
-                status_code=502,
-                detail=f"LLM API error: {str(e)}"
-            )
+        import time
+        import httpx
+        
+        max_retries = 4
+        base_delay = 2
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(
+                    model=settings.NVIDIA_MODEL,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0,
+                    max_tokens=4096
+                )
+                print("✅ [AIExtractor] Successfully received response from NVIDIA API")
+                break
+            except Exception as e:
+                print(f"❌ [AIExtractor] API call failed on attempt {attempt + 1}: {str(e)}")
+                if getattr(e, 'status_code', None) == 503 or "503" in str(e):
+                    if attempt < max_retries - 1:
+                        delay = base_delay * (2 ** attempt)
+                        print(f"⏳ [AIExtractor] Resource exhausted (503). Retrying in {delay} seconds...")
+                        time.sleep(delay)
+                        continue
+                
+                # If we get here it's either not a 503 or we ran out of retries
+                if attempt == max_retries - 1 or getattr(e, 'status_code', None) != 503:
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"LLM API error: {str(e)}"
+                    )
 
         # Check for API errors returned in body
         if getattr(response, "error", None):

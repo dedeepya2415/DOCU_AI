@@ -176,17 +176,18 @@ class TemplateFiller:
             # Use real font info from nearby text
             f_size, f_name = self.get_font_info_near(page, rect)
 
-            # Insert text. Baseline is usually ~15% above the bottom of the bounding box
-            baseline_y = rect.y1 - (rect.height * 0.15)
-            point = fitz.Point(rect.x0, baseline_y)
+            from app.services.layout_engine import LayoutEngine
+            engine = LayoutEngine(fontname=f_name, default_fontsize=f_size, min_fontsize=8)
+            final_fsize, lines = engine.fit_text_to_box(str(value), (rect.x0, rect.y0, rect.x1, rect.y1))
 
-            page.insert_text(
-                point,
-                str(value),
-                fontsize=f_size,
-                fontname=f_name,
-                color=(0, 0, 0)
-            )
+            for line_text, lx, ly in lines:
+                page.insert_text(
+                    fitz.Point(lx, ly),
+                    line_text,
+                    fontsize=final_fsize,
+                    fontname=f_name,
+                    color=(0, 0, 0)
+                )
 
         fd, temp_path = tempfile.mkstemp(suffix=".pdf")
         os.close(fd)
@@ -239,16 +240,19 @@ class TemplateFiller:
             
             f_size = ins["f_size"]
             f_name = ins["f_name"]
-            baseline_y = rect.y1 - (rect.height * 0.15)
-            point = fitz.Point(rect.x0, baseline_y)
             
-            page.insert_text(
-                point,
-                ins["text"],
-                fontsize=f_size,
-                fontname=f_name,
-                color=(0, 0, 0)
-            )
+            from app.services.layout_engine import LayoutEngine
+            engine = LayoutEngine(fontname=f_name, default_fontsize=f_size, min_fontsize=8)
+            final_fsize, lines = engine.fit_text_to_box(str(ins["text"]), (rect.x0, rect.y0, rect.x1, rect.y1))
+
+            for line_text, lx, ly in lines:
+                page.insert_text(
+                    fitz.Point(lx, ly),
+                    line_text,
+                    fontsize=final_fsize,
+                    fontname=f_name,
+                    color=(0, 0, 0)
+                )
 
         fd, temp_path = tempfile.mkstemp(suffix=".pdf")
         os.close(fd)

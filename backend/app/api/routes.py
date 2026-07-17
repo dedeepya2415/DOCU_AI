@@ -97,6 +97,9 @@ from pathlib import Path
 from app.services.ocr import OCRService
 from app.services.template_analyzer import TemplateAnalyzer
 from app.services.template_filler import TemplateFiller
+from app.services.schema_store import TemplateSchemaStore
+from app.services.document_composer import DocumentComposer
+from starlette.background import BackgroundTasks, BackgroundTask
 import urllib.parse
 import os
 
@@ -105,6 +108,8 @@ async def generate_document(
     template_file: UploadFile = File(...),
     registry_data: str = Form(...)
 ):
+    filled_docx_path = None
+    filled_path = None
     try:
         registry_json = json.loads(registry_data)
     except json.JSONDecodeError:
@@ -114,6 +119,10 @@ async def generate_document(
     file_id = str(uuid.uuid4())
     ext = Path(template_file.filename).suffix.lower()
     template_path = f"uploads/{file_id}{ext}"
+    
+    # We must globally import os and tempfile to avoid shadowing
+    import os
+    import tempfile
     os.makedirs("uploads", exist_ok=True)
 
     with open(template_path, "wb") as buffer:
@@ -121,59 +130,96 @@ async def generate_document(
 
     analyzer = TemplateAnalyzer()
     filler = TemplateFiller()
+    schema_store = TemplateSchemaStore()
+    composer = DocumentComposer()
 
     # Auto-detect template type: blank (underscores) vs pre-filled
     is_blank = filler.is_blank_template(template_path)
 
     if is_blank and ext == ".pdf":
-        # ── MODE 1: Blank PDF template ──
-        # Step 1: Extract all blank fields with bounding boxes
+        # ── MODE 1: Blank PDF template — TWO-PHASE SEMANTIC MAPPING ──
+
+        # Phase 1a: Extract blank fields with enriched context + section tracking
         fields = filler.extract_blank_fields_from_pdf(template_path)
 
         print(f"[AutoFill] Detected BLANK template with {len(fields)} fields")
         for f in fields:
-            print(f"  Field {f['index']}: ...{f['context_before']}  [{f['blank_text']}]  {f['context_after']}...")
+            print(f"  Field {f['index']} [{f.get('section','?')}]: "
+                  f"'{f['context_before']}' [BLANK] '{f['context_after']}'")
 
-        # Step 2: LLM maps fields by index
-        mapping_data, token_usage = await asyncio.to_thread(
-            analyzer.analyze_blank_fields, fields, registry_json
-        )
+        # Phase 1b: Caching or LLM
+        schema = schema_store.get_schema(template_path)
+        token_usage = {}
+        
+        if schema:
+            print(f"⚡ [AutoFill] Loaded cached schema for template (skip LLM analysis)")
+        else:
+            print(f"[AutoFill] Analyzing template schema for the first time via LLM")
+            schema, token_usage = await asyncio.to_thread(
+                analyzer.analyze_field_semantics, fields
+            )
+            schema_store.save_schema(template_path, schema)
 
-        # Step 3: Fill blanks at exact positions
-        field_values = mapping_data.get("field_values", {})
+        print(f"[AutoFill] Semantic schema:")
+        for idx, info in schema.items():
+            print(f"  Field {idx}: role={info.get('role')} type={info.get('field_type')} "
+                  f"reason={info.get('reason', '')}")
+
+        # Phase 2: Deterministic Python lookup — no LLM, no guessing
+        raw_field_values = analyzer.map_registry_values(schema, registry_json)
+
+        # Phase 3: Document Composer (Formatting rules)
+        field_values = composer.format_fields(schema, raw_field_values)
+
+        mapping_data = {"field_values": field_values}
         filled_path = filler.fill_pdf_blanks(template_path, fields, field_values)
 
     elif ext == ".docx":
-        # ── MODE: DOCX template (blank or pre-filled) ──
-        if is_blank:
-            # Extract fields from DOCX for blank template
-            # For DOCX we use text-based extraction, same LLM call
-            import re as re_mod
-            from docx import Document as DocxDocument
-            docx_doc = DocxDocument(template_path)
-            fields = []
-            for paragraph in docx_doc.paragraphs:
-                for match in re_mod.finditer(r"_{3,}", paragraph.text):
-                    start = max(0, match.start() - 40)
-                    end = min(len(paragraph.text), match.end() + 40)
-                    fields.append({
-                        "index": len(fields),
-                        "blank_text": match.group(),
-                        "context_before": paragraph.text[start:match.start()].strip(),
-                        "context_after": paragraph.text[match.end():end].strip(),
-                    })
-
-            mapping_data, token_usage = await asyncio.to_thread(
-                analyzer.analyze_blank_fields, fields, registry_json
-            )
+        # ── MODE 3: Native Master Template (DOCX -> PDF) ──
+        # Uploaded .docx MUST be a Master Template containing {{ tags }}
+        from docxtpl import DocxTemplate
+        import docx2pdf
+        
+        doc = DocxTemplate(template_path)
+        template_vars = list(doc.get_undeclared_variables())
+        print(f"[AutoFill] Detected {len(template_vars)} Master Template variables: {template_vars}")
+        
+        schema = schema_store.get_schema(template_path)
+        token_usage = {}
+        if schema:
+            print(f"⚡ [AutoFill] Loaded cached schema for Master Template")
         else:
-            ocr_service = OCRService()
-            raw_text = ocr_service.extract_text(template_path)
-            mapping_data, token_usage = await asyncio.to_thread(
-                analyzer.analyze_prefilled, raw_text, registry_json
+            schema, token_usage = await asyncio.to_thread(
+                analyzer.map_native_variables, template_vars, registry_json
             )
+            schema_store.save_schema(template_path, schema)
+            
+        # Format dates/currency properly
+        formatted_context = composer.format_native_context(schema)
+        mapping_data = {"native_context": formatted_context}
+        
+        # docxtpl renderer
+        filled_docx_path = filler.fill_docx(template_path, formatted_context)
+        
+        # PDF Export
+        filled_pdf_fd, filled_path = tempfile.mkstemp(suffix=".pdf")
+        os.close(filled_pdf_fd)
+        
+        print(f"[AutoFill] Exporting populated Master Template to PDF...")
+        # docx2pdf uses win32com which requires COM initialization per-thread
+        def _convert_to_pdf(in_path, out_path):
+            import pythoncom
+            pythoncom.CoInitialize()
+            try:
+                docx2pdf.convert(in_path, out_path)
+            finally:
+                pythoncom.CoUninitialize()
 
-        filled_path = filler.fill_docx(template_path, mapping_data)
+        await asyncio.to_thread(_convert_to_pdf, filled_docx_path, filled_path)
+        print(f"[AutoFill] Master PDF Export Complete.")
+        
+        # Override extension logic to deliver the PDF
+        ext = ".pdf"
 
     else:
         # ── MODE 2: Pre-filled PDF ──
@@ -182,10 +228,21 @@ async def generate_document(
 
         print(f"[AutoFill] Detected PRE-FILLED template")
 
-        mapping_data, token_usage = await asyncio.to_thread(
-            analyzer.analyze_prefilled, raw_text, registry_json
-        )
+        schema = schema_store.get_schema(template_path)
+        token_usage = {}
+        if schema:
+            print(f"⚡ [AutoFill] Loaded cached schema for PRE-FILLED PDF template")
+        else:
+            schema, token_usage = await asyncio.to_thread(
+                analyzer.analyze_prefilled_semantics, raw_text
+            )
+            schema_store.save_schema(template_path, schema)
 
+        mapping_data = analyzer.map_prefilled_registry_values(schema, registry_json)
+        # Format the replacements via DocumentComposer
+        formatted_mappings = composer.format_prefilled(schema, mapping_data.get("mappings", []))
+        mapping_data["mappings"] = formatted_mappings
+        
         filled_path = filler.fill_pdf_prefilled(template_path, mapping_data)
 
     # Encode mapping data for the frontend header
@@ -195,15 +252,24 @@ async def generate_document(
     token_usage_str = json.dumps(token_usage)
 
     filename = f"Filled_{template_file.filename}"
-    media_type = (
-        "application/pdf" if ext == ".pdf"
-        else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    )
+    media_type = "application/pdf"
+
+    # Schedule the output and intermediate docx for deletion
+    tasks = BackgroundTasks()
+    def _unlink_safe(p):
+        if p and os.path.exists(p):
+            try: os.unlink(p)
+            except: pass
+            
+    tasks.add_task(_unlink_safe, filled_path)
+    if filled_docx_path:
+        tasks.add_task(_unlink_safe, filled_docx_path)
 
     return FileResponse(
         path=filled_path,
         filename=filename,
         media_type=media_type,
+        background=tasks,
         headers={
             "Access-Control-Expose-Headers": "X-Template-Mapping, X-Template-File-Id, X-Token-Usage",
             "X-Template-Mapping": encoded_mapping,
@@ -230,7 +296,8 @@ async def apply_template_edits(
     filler = TemplateFiller()
     
     if ext == ".docx":
-        filled_path = filler.fill_docx(template_path, mapping_json)
+        filled_path = filler.fill_docx(template_path, mapping_json.get("native_context", mapping_json))
+        # Export to PDF? For now just return DOCX. Usually Apply edits is only built for PDFs.
     elif ext == ".pdf":
         is_blank = filler.is_blank_template(template_path)
         if is_blank:
@@ -249,8 +316,18 @@ async def apply_template_edits(
         else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
+    def _unlink_safe2():
+        try:
+            if os.path.exists(filled_path): os.unlink(filled_path)
+        except: pass
+
     return FileResponse(
         path=filled_path,
         filename=filename,
-        media_type=media_type
-    )
+        media_type=media_type,
+        background=BackgroundTask(_unlink_safe2),
+        headers={
+            "Access-Control-Expose-Headers": "X-Template-File-Id",
+            "X-Template-File-Id": file_id
+        }
+    )

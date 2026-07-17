@@ -1,0 +1,326 @@
+{
+    "d91cb8eb357c49c6679e4aafa3edcfe0e1afbb72ab809efc3bdc8b51ed02cbc9": {
+        "0": {
+            "role": "skip",
+            "field_type": "date_day",
+            "reason": "Context 'executed on this the' before [BLANK] and 'day of' after indicates a date day field."
+        },
+        "1": {
+            "role": "skip",
+            "field_type": "date_month",
+            "reason": "Context 'day of' before [BLANK] and 'by Sri/ Smt./Kum.' after indicates a month field in the date."
+        },
+        "2": {
+            "role": "seller",
+            "field_type": "name",
+            "reason": "Context 'by Sri/ Smt./Kum.' before [BLANK] and 'S/o, D/o, W/o.' after indicates the name of the seller."
+        },
+        "3": {
+            "role": "seller",
+            "field_type": "father_name",
+            "reason": "Context 'S/o, D/o, W/o.' before [BLANK] and 'aged about' after indicates father's name of the seller."
+        },
+        "4": {
+            "role": "seller",
+            "field_type": "age",
+            "reason": "Context 'aged about' before [BLANK] and 'years' after indicates age of the seller."
+        },
+        "5": {
+            "role": "seller",
+            "field_type": "occupation",
+            "reason": "Context 'Occupation:' before [BLANK] and 'Resident of' after indicates occupation of the seller."
+        },
+        "6": {
+            "role": "seller",
+            "field_type": "address",
+            "reason": "Context 'Resident of D.No.' before [BLANK] and 'Represented by' after indicates address of the seller."
+        },
+        "7": {
+            "role": "seller",
+            "field_type": "other",
+            "reason": "Context 'Represented by his/ her agent' before [BLANK] and 'Being minor represented' after indicates a representation clause, not a standard field."
+        },
+        "8": {
+            "role": "seller",
+            "field_type": "name",
+            "reason": "Context 'Sri/Smt./Kum.' before [BLANK] and 'S/o, D/o, W/o.' after indicates name of the guardian or representative."
+        },
+        "9": {
+            "role": "seller",
+            "field_type": "father_name",
+            "reason": "Context 'S/o, D/o, W/o.' before [BLANK] and 'aged about' after indicates father's name of the representative."
+        },
+        "10": {
+            "role": "seller",
+            "field_type": "age",
+            "reason": "Context 'aged about' before [BLANK] and 'years' after indicates age of the representative."
+        },
+        "11": {
+            "role": "seller",
+            "field_type": "occupation",
+            "reason": "Context 'Occupation:' before [BLANK] and 'Residing at' after indicates occupation of the representative."
+        },
+        "12": {
+            "role": "seller",
+            "field_type": "address",
+            "reason": "Context 'Residing at' before [BLANK] and 'Under general/ special power' after indicates address of the representative."
+        },
+        "13": {
+            "role": "skip",
+            "field_type": "legal_ref",
+            "reason": "Context 'document number' before [BLANK] and 'of year' after indicates a legal reference number."
+        },
+        "14": {
+            "role": "skip",
+            "field_type": "legal_ref",
+            "reason": "Context 'of year' before [BLANK] and 'Book IV' after indicates a year in legal reference."
+        },
+        "15": {
+            "role": "buyer",
+            "field_type": "name",
+            "reason": "Context 'In Favour of Sri/ Smt.' before [BLANK] and 'S/o, D/o, W/o.' after indicates name of the buyer."
+        },
+        "16": {
+            "role": "buyer",
+            "field_type": "father_name",
+            "reason": "Context 'S/o, D/o, W/o.' before [BLANK] and 'aged about' after indicates father's name of the buyer."
+        },
+        "17": {
+            "role": "buyer",
+            "field_type": "age",
+            "reason": "Context 'aged about' before [BLANK] and 'years' after indicates age of the buyer."
+        },
+        "18": {
+            "role": "buyer",
+            "field_type": "occupation",
+            "reason": "Context 'Occupation:' before [BLANK] and 'Residing of' after indicates occupation of the buyer."
+        },
+        "19": {
+            "role": "buyer",
+            "field_type": "address",
+            "reason": "Context 'Residing of D.No.' before [BLANK] and 'Being minor represented' after indicates address of the buyer."
+        },
+        "20": {
+            "role": "buyer",
+            "field_type": "name",
+            "reason": "Context 'Sri/Smt./Kum.' before [BLANK] and 'S/o, D/o, W/o.' after indicates name of the guardian or representative of buyer."
+        },
+        "21": {
+            "role": "buyer",
+            "field_type": "father_name",
+            "reason": "Context 'S/o, D/o, W/o.' before [BLANK] and 'aged about' after indicates father's name of the buyer's representative."
+        },
+        "22": {
+            "role": "buyer",
+            "field_type": "age",
+            "reason": "Context 'aged about' before [BLANK] and 'years' after indicates age of the buyer's representative."
+        },
+        "23": {
+            "role": "buyer",
+            "field_type": "occupation",
+            "reason": "Context 'Occupation:' before [BLANK] and 'Residing at' after indicates occupation of the buyer's representative."
+        },
+        "24": {
+            "role": "property",
+            "field_type": "survey_number",
+            "reason": "Context 'Survey No.' before [BLANK] and 'situated at' after indicates survey number of the property."
+        },
+        "25": {
+            "role": "property",
+            "field_type": "property_address",
+            "reason": "Context 'situated at' before [BLANK] and 'Village' after indicates village name in property address."
+        },
+        "26": {
+            "role": "property",
+            "field_type": "property_address",
+            "reason": "Context 'Village,' before [BLANK] and 'Mandal' after indicates mandal name in property address."
+        },
+        "27": {
+            "role": "property",
+            "field_type": "property_address",
+            "reason": "Context 'Mandal of' before [BLANK] and 'District' after indicates district name in property address."
+        },
+        "28": {
+            "role": "skip",
+            "field_type": "legal_ref",
+            "reason": "Context 'document no.' before [BLANK] and 'of SRO' after indicates a legal document reference number."
+        },
+        "29": {
+            "role": "skip",
+            "field_type": "legal_ref",
+            "reason": "Context 'of SRO' before [BLANK] and 'copied in volume no.' after indicates SRO office reference."
+        },
+        "30": {
+            "role": "skip",
+            "field_type": "legal_ref",
+            "reason": "Context 'volume no.' before [BLANK] and 'at page' after indicates volume number in legal reference."
+        },
+        "31": {
+            "role": "skip",
+            "field_type": "legal_ref",
+            "reason": "Context 'at page' before [BLANK] and 'WHEREAS' after indicates page number in legal reference."
+        },
+        "32": {
+            "role": "property",
+            "field_type": "sale_price",
+            "reason": "Context 'consideration of Rs.' before [BLANK] and 'and vendee' after indicates sale price."
+        },
+        "33": {
+            "role": "buyer",
+            "field_type": "sale_price",
+            "reason": "Context 'sum of Rs.' before [BLANK] and 'already received' after indicates sale price paid by buyer."
+        },
+        "34": {
+            "role": "property",
+            "field_type": "area",
+            "reason": "Context 'acres, guntas/ square yards, including acres guntas' before [BLANK] and 'square yards transferred' after indicates area measurement."
+        },
+        "35": {
+            "role": "property",
+            "field_type": "area",
+            "reason": "Context 'acres guntas' before [BLANK] and 'square yards transferred' after indicates area in square yards."
+        },
+        "36": {
+            "role": "skip",
+            "field_type": "legal_ref",
+            "reason": "Context 'proceedings number' before [BLANK] and 'dated' after indicates a legal proceeding reference number."
+        },
+        "37": {
+            "role": "skip",
+            "field_type": "date_day",
+            "reason": "Context 'dated' before [BLANK] and 'iv) Rule 3' after indicates a date field."
+        },
+        "38": {
+            "role": "property",
+            "field_type": "survey_number",
+            "reason": "Context 'Plot No._________ admeasuring square yards. / sqmts, in Survey No' before [BLANK] and 'ward no' after indicates survey number."
+        },
+        "39": {
+            "role": "property",
+            "field_type": "area",
+            "reason": "Context 'admeasuring square yards. /' before [BLANK] and 'sqmts' after indicates area in square yards or sqmts."
+        },
+        "40": {
+            "role": "property",
+            "field_type": "property_address",
+            "reason": "Context 'ward no block no situated in Municipal Corporation Muncipality' before [BLANK] and '/ Village Mandal' after indicates municipality name."
+        },
+        "41": {
+            "role": "property",
+            "field_type": "property_address",
+            "reason": "Context 'Muncipality____________/ Village Mandal' before [BLANK] and ', Sub District' after indicates village or mandal name."
+        },
+        "42": {
+            "role": "property",
+            "field_type": "property_address",
+            "reason": "Context 'Mandal , Sub District' before [BLANK] and 'and Registration District' after indicates sub district name."
+        },
+        "43": {
+            "role": "property",
+            "field_type": "property_address",
+            "reason": "Context 'Sub District and Registration District' before [BLANK] and 'bounded by' after indicates registration district name."
+        },
+        "44": {
+            "role": "property",
+            "field_type": "other",
+            "reason": "Context 'bounded by, NORTH' before [BLANK] and 'SOUTH' after indicates a boundary direction, but not a standard field type."
+        },
+        "45": {
+            "role": "property",
+            "field_type": "other",
+            "reason": "Context 'NORTH : SOUTH' before [BLANK] and 'EAST' after indicates a boundary direction."
+        },
+        "46": {
+            "role": "property",
+            "field_type": "other",
+            "reason": "Context 'SOUTH : EAST : WEST' before [BLANK] and 'bounded by' after indicates a boundary direction."
+        },
+        "47": {
+            "role": "property",
+            "field_type": "other",
+            "reason": "Context 'bounded by, NORTH : SOUTH : EAST : WEST :' before [BLANK] and no after context indicates a boundary direction."
+        }
+    },
+    "8d3d320bfb93d290360b31baf342b35d66284ff98e150646a928c7014b6bc2cd": [
+        {
+            "search_text": "Vempala Venkata Satyanarayana",
+            "role": "seller",
+            "field_type": "name"
+        },
+        {
+            "search_text": "Late Vempala Suryaprakash Rao",
+            "role": "seller",
+            "field_type": "father_name"
+        },
+        {
+            "search_text": "63",
+            "role": "seller",
+            "field_type": "age"
+        },
+        {
+            "search_text": "6797 4558 2681",
+            "role": "seller",
+            "field_type": "aadhaar"
+        },
+        {
+            "search_text": "AAPPV8271R",
+            "role": "seller",
+            "field_type": "pan"
+        },
+        {
+            "search_text": "H.No. 757, Sharam Kalyan Kendra Road, Near G.E.L. Church, New Sitaramdera, Agrico- P.O.,Jamshedpur, East Singhbhum-District, Jharkhand-State, Pincode:831009",
+            "role": "seller",
+            "field_type": "address"
+        },
+        {
+            "search_text": "Bachu Srinivasulu",
+            "role": "buyer",
+            "field_type": "name"
+        },
+        {
+            "search_text": "Late Bachu Lingaiah",
+            "role": "buyer",
+            "field_type": "father_name"
+        },
+        {
+            "search_text": "58",
+            "role": "buyer",
+            "field_type": "age"
+        },
+        {
+            "search_text": "6214 7906 3183",
+            "role": "buyer",
+            "field_type": "aadhaar"
+        },
+        {
+            "search_text": "AINPB2512M",
+            "role": "buyer",
+            "field_type": "pan"
+        },
+        {
+            "search_text": "Door No. 12-1-1279, Shantinagar, North lallaguda(Post) Secunderabad, Pincode:500017;Telangana State",
+            "role": "buyer",
+            "field_type": "address"
+        },
+        {
+            "search_text": "411/3P,Part",
+            "role": "property",
+            "field_type": "survey_number"
+        },
+        {
+            "search_text": "33,00,000/-",
+            "role": "property",
+            "field_type": "sale_price"
+        },
+        {
+            "search_text": "300 Square Yards",
+            "role": "property",
+            "field_type": "area"
+        },
+        {
+            "search_text": "Plot No. 10, admeasuring an extent of 300 Square Yards (equivalent to 250.84 Square Meters), with a nearby Door No. 3-292/5",
+            "role": "property",
+            "field_type": "property_address"
+        }
+    ]
+}
